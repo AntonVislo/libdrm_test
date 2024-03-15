@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include "cbmp.h"
+
 
 struct buffer_object {
     uint32_t width;
@@ -22,7 +24,37 @@ struct buffer_object {
     uint32_t fb_id;
 };
 
+
+
 struct buffer_object buf;
+
+int imgToFb(const char *img)
+{
+    BMP* bmp = bopen(img);
+    unsigned int x, y, width, height;
+    unsigned char r, g, b;
+    unsigned char *offset = buf.vaddr;
+    width = get_width(bmp);
+    height = get_height(bmp);
+    printf("height: %d, width: %d\n", width, height);
+    for(y = 0; y < buf.height; y++)
+    {
+       for(x = 0; x < buf.width; x++)
+       {
+	    if(x < width && y < height)
+		{
+            		get_pixel_rgb(bmp,x , (height - y - 1), &r, &g, &b);
+    	    		*(offset + 0) = r;
+	    		*(offset + 1) = g;
+	    		*(offset + 2) = b;
+		}
+	    offset +=4;		
+        }
+    }
+    bwrite(bmp, "./picture1.bmp");
+    bclose(bmp);
+    return 0;
+}
 
 static int modeset_create_fb(int fd, struct buffer_object *bo)
 {
@@ -74,7 +106,16 @@ int main(int argc, char **argv)
     drmModeRes *res;
     uint32_t conn_id;
     uint32_t crtc_id;
-
+    if (argc < 2)
+	{
+		printf("not enough arguments");
+		return -1;
+	}
+    if(access(argv[1], F_OK)!= 0)
+	{
+		printf("file %s does not exist\n", argv[1]);
+                return -1;
+	}
     fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
 
     res = drmModeGetResources(fd);
@@ -101,6 +142,9 @@ int main(int argc, char **argv)
 			*(buf.vaddr + i*4 + 3) = 0; 
 		}
     }
+    imgToFb(argv[1]);
+    printf("Enter colour for fb, print -1 to exit\n");
+    scanf("%d",&col);
     modeset_destroy_fb(fd, &buf);
 
     drmModeFreeConnector(conn);
