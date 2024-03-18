@@ -70,7 +70,12 @@ int main(int argc, char** argv)
 				const char *name = drmModeGetConnectorTypeName(conn->connector_type);
 				printf("\tconnector type: %s\n", name);
 				if (conn->connection==DRM_MODE_CONNECTED)
+				{
 					printf("\tconnector status: connected\n");
+					printf("\tencoder id: %d\n", conn->encoder_id);
+					drmModeEncoderPtr enc = drmModeGetEncoder(fd, conn->encoder_id);
+					printf("\tcrtc id: %d\n", enc->crtc_id);
+				}
 				else if (conn->connection==DRM_MODE_DISCONNECTED)
 					printf("\tconnector status: disconnected\n");
 				else

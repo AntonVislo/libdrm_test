@@ -103,14 +103,26 @@ static void modeset_destroy_fb(int fd,struct  buffer_object *bo)
     drmIoctl(fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy);
 }
 
+int create_fb(int fd, struct buffer_object *bo, uint32_t conn_id, uint32_t crtc_id)
+{
+    drmModeConnector *conn;
+    drmModeCrtc *crtc;
+    conn = drmModeGetConnector(fd, conn_id);
+    crtc = drmModeGetCrtc(fd, crtc_id);
+    bo->width = crtc->mode.hdisplay;
+    bo->height = crtc->mode.vdisplay;
+    printf("buf.width: %d, buf.height: %d\n",bo->width, bo->height);
+    modeset_create_fb(fd, bo);
+    drmModeSetCrtc(fd, crtc_id, bo->fb_id,
+            0, 0, &conn_id, 1, &crtc->mode);
+    drmModeFreeConnector(conn);
+    drmModeFreeCrtc(crtc);
+    return 0;   
+}
 int main(int argc, char **argv)
 {
     int fd;
-    drmModeConnector *conn;
-    drmModeCrtc *crtc;
     drmModeRes *res;
-    uint32_t conn_id;
-    uint32_t crtc_id;
     if (argc < 3)
 	{
 		printf("not enough arguments");
@@ -129,30 +141,9 @@ int main(int argc, char **argv)
     fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
     res = drmModeGetResources(fd);
     /************INIT DP FB*************/
-    crtc_id = CRTC_ID_DP;
-    conn_id = CONN_ID_DP;
-    conn = drmModeGetConnector(fd, conn_id);
-    crtc = drmModeGetCrtc(fd, crtc_id);
-    buf.width = crtc->mode.hdisplay;
-    buf.height = crtc->mode.vdisplay;
-    printf("buf.width: %d, buf.height: %d\n",buf.width, buf.height);
-    modeset_create_fb(fd, &buf);
-    drmModeSetCrtc(fd, crtc_id, buf.fb_id,
-            0, 0, &conn_id, 1, &crtc->mode);
-    drmModeFreeConnector(conn);
-    drmModeFreeCrtc(crtc);   
+    create_fb(fd, &buf, CONN_ID_DP, CRTC_ID_DP);
     /************INIT HDMI FB************/
-    crtc_id = CRTC_ID_HDMI;
-    conn_id = CONN_ID_HDMI;
-    conn = drmModeGetConnector(fd, conn_id);
-    crtc = drmModeGetCrtc(fd, crtc_id);
-    buf_hdmi.width = crtc->mode.hdisplay;
-    buf_hdmi.height = crtc->mode.vdisplay;
-    printf("buf-hdmi.width: %d, buf_hdmi.height: %d\n",buf_hdmi.width, buf_hdmi.height);
-    modeset_create_fb(fd, &buf_hdmi);
-    drmModeSetCrtc(fd, crtc_id, buf_hdmi.fb_id,
-            0, 0, &conn_id, 1, &crtc->mode);
-
+    create_fb(fd, &buf_hdmi, CONN_ID_HDMI, CRTC_ID_HDMI);
 
  int col = 1;
     while(col >= 0 ){
@@ -172,8 +163,6 @@ int main(int argc, char **argv)
     scanf("%d",&col);
     modeset_destroy_fb(fd, &buf);
     modeset_destroy_fb(fd, &buf_hdmi);
-    drmModeFreeCrtc(crtc);
-    drmModeFreeConnector(conn);
     drmModeFreeResources(res);
 
     close(fd);
