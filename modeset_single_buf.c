@@ -13,8 +13,12 @@
 #include <xf86drmMode.h>
 #include "cbmp.h"
 
+#define CRTC_ID_DP 68
+#define CONN_ID_DP 205
+#define CRTC_ID_HDMI 112
+#define CONN_ID_HDMI 207
 
-struct buffer_object {
+struct buffer_object{
     uint32_t width;
     uint32_t height;
     uint32_t pitch;
@@ -27,13 +31,14 @@ struct buffer_object {
 
 
 struct buffer_object buf;
+struct buffer_object buf_hdmi;
 
-int imgToFb(const char *img)
+int imgToFb(const char *img, struct buffer_object *bo)
 {
     BMP* bmp = bopen(img);
     unsigned int x, y, width, height;
     unsigned char r, g, b;
-    unsigned char *offset = buf.vaddr;
+    unsigned char *offset = bo->vaddr;
     width = get_width(bmp);
     height = get_height(bmp);
     printf("height: %d, width: %d\n", width, height);
@@ -56,7 +61,7 @@ int imgToFb(const char *img)
     return 0;
 }
 
-static int modeset_create_fb(int fd, struct buffer_object *bo)
+static int modeset_create_fb(int fd,struct  buffer_object *bo)
 {
     struct drm_mode_create_dumb create = {};
      struct drm_mode_map_dumb map = {};
@@ -87,7 +92,7 @@ static int modeset_create_fb(int fd, struct buffer_object *bo)
     return 0;
 }
 
-static void modeset_destroy_fb(int fd, struct buffer_object *bo)
+static void modeset_destroy_fb(int fd,struct  buffer_object *bo)
 {
     struct drm_mode_destroy_dumb destroy = {};
 
@@ -103,10 +108,11 @@ int main(int argc, char **argv)
 {
     int fd;
     drmModeConnector *conn;
+    drmModeCrtc *crtc;
     drmModeRes *res;
     uint32_t conn_id;
     uint32_t crtc_id;
-    if (argc < 2)
+    if (argc < 3)
 	{
 		printf("not enough arguments");
 		return -1;
@@ -116,37 +122,58 @@ int main(int argc, char **argv)
 		printf("file %s does not exist\n", argv[1]);
                 return -1;
 	}
+   if(access(argv[2], F_OK)!= 0)
+	{
+		printf("file %s does not exist\n", argv[2]);
+                return -1;
+	} 
     fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
-
     res = drmModeGetResources(fd);
-    crtc_id = 112;
-    conn_id = 207;
-
+    /************INIT DP FB*************/
+    crtc_id = CRTC_ID_DP;
+    conn_id = CONN_ID_DP;
     conn = drmModeGetConnector(fd, conn_id);
-    buf.width = conn->modes[0].hdisplay;
-    buf.height = conn->modes[0].vdisplay;
+    crtc = drmModeGetCrtc(fd, crtc_id);
+    buf.width = crtc->mode.hdisplay;
+    buf.height = crtc->mode.vdisplay;
     printf("buf.width: %d, buf.height: %d\n",buf.width, buf.height);
     modeset_create_fb(fd, &buf);
-
     drmModeSetCrtc(fd, crtc_id, buf.fb_id,
-            0, 0, &conn_id, 1, &conn->modes[0]);
-    int col = 1;
+            0, 0, &conn_id, 1, &crtc->mode);
+    drmModeFreeConnector(conn);
+    drmModeFreeCrtc(crtc);   
+    /************INIT HDMI FB************/
+    crtc_id = CRTC_ID_HDMI;
+    conn_id = CONN_ID_HDMI;
+    conn = drmModeGetConnector(fd, conn_id);
+    crtc = drmModeGetCrtc(fd, crtc_id);
+    buf_hdmi.width = crtc->mode.hdisplay;
+    buf_hdmi.height = crtc->mode.vdisplay;
+    printf("buf-hdmi.width: %d, buf_hdmi.height: %d\n",buf_hdmi.width, buf_hdmi.height);
+    modeset_create_fb(fd, &buf_hdmi);
+    drmModeSetCrtc(fd, crtc_id, buf_hdmi.fb_id,
+            0, 0, &conn_id, 1, &crtc->mode);
+
+
+ int col = 1;
     while(col >= 0 ){
     	printf("Enter colour for fb, print -1 to exit\n");
     	scanf("%d",&col);
 	printf("you enter: %d\n", col);
     	for (int i = 0 ; i < buf.width*buf.height; i++)
 		{
-			*(buf.vaddr + i*4 + 1) = 0;
-			*(buf.vaddr + i*4 + 2) = (char)col&0xff;
-			*(buf.vaddr + i*4 + 3) = 0; 
+			*(buf.vaddr + i*4 + 1) = *(buf_hdmi.vaddr + i*4 + 1) =  0;
+			*(buf.vaddr + i*4 + 2) = *(buf_hdmi.vaddr + i*4 + 2) = (char)col&0xff;
+			*(buf.vaddr + i*4 + 3) = *(buf_hdmi.vaddr + i*4 + 3) = 0; 
 		}
     }
-    imgToFb(argv[1]);
+    imgToFb(argv[1], &buf);
+    imgToFb(argv[2], &buf_hdmi);
     printf("Enter colour for fb, print -1 to exit\n");
     scanf("%d",&col);
     modeset_destroy_fb(fd, &buf);
-
+    modeset_destroy_fb(fd, &buf_hdmi);
+    drmModeFreeCrtc(crtc);
     drmModeFreeConnector(conn);
     drmModeFreeResources(res);
 
@@ -154,3 +181,4 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
