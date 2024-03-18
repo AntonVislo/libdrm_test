@@ -42,9 +42,9 @@ int imgToFb(const char *img, struct buffer_object *bo)
     width = get_width(bmp);
     height = get_height(bmp);
     printf("height: %d, width: %d\n", width, height);
-    for(y = 0; y < buf.height; y++)
+    for(y = 0; y < bo->height; y++)
     {
-       for(x = 0; x < buf.width; x++)
+       for(x = 0; x < bo->width; x++)
        {
 	    if(x < width && y < height)
 		{
@@ -56,7 +56,6 @@ int imgToFb(const char *img, struct buffer_object *bo)
 	    offset +=4;		
         }
     }
-    bwrite(bmp, "./picture1.bmp");
     bclose(bmp);
     return 0;
 }
