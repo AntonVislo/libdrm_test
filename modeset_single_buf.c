@@ -19,7 +19,7 @@
 #define CONN_ID_HDMI 207
 #define MAX_CONN 10
 
-struct buffer_object{
+struct bufferObject{
     uint32_t width;
     uint32_t height;
     uint32_t pitch;
@@ -29,20 +29,15 @@ struct buffer_object{
     uint32_t fb_id;
 };
 
-typedef struct connector_object{
+typedef struct connectorObject{
     uint32_t conn_id;
     uint32_t encod_id;
     uint32_t crtc_id;
     const char *name;
-    struct buffer_object buf;
-}connector_object;
+    struct bufferObject buf;
+}connectorObject;
 
-
-
-struct buffer_object buf;
-struct buffer_object buf_hdmi;
-
-int imgToFb(char *img, struct buffer_object *bo)
+int imgToFb(char *img, struct bufferObject *bo)
 {
     BMP* bmp = bopen(img);
     unsigned int x, y, width, height;
@@ -68,7 +63,7 @@ int imgToFb(char *img, struct buffer_object *bo)
     return 0;
 }
 
-static int modeset_create_fb(int fd,struct  buffer_object *bo)
+static int modesetCreatefb(int fd,struct  bufferObject *bo)
 {
     struct drm_mode_create_dumb create = {};
      struct drm_mode_map_dumb map = {};
@@ -99,7 +94,7 @@ static int modeset_create_fb(int fd,struct  buffer_object *bo)
     return 0;
 }
 
-static void modeset_destroy_fb(int fd,struct  buffer_object *bo)
+static void modesetDestroyfb(int fd,struct  bufferObject *bo)
 {
     struct drm_mode_destroy_dumb destroy = {};
 
@@ -111,7 +106,7 @@ static void modeset_destroy_fb(int fd,struct  buffer_object *bo)
     drmIoctl(fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy);
 }
 
-int create_fb(int fd, struct buffer_object *bo, uint32_t conn_id, uint32_t crtc_id)
+int createfb(int fd, struct bufferObject *bo, uint32_t conn_id, uint32_t crtc_id)
 {
     drmModeConnector *conn;
     drmModeCrtc *crtc;
@@ -120,7 +115,7 @@ int create_fb(int fd, struct buffer_object *bo, uint32_t conn_id, uint32_t crtc_
     bo->width = crtc->mode.hdisplay;
     bo->height = crtc->mode.vdisplay;
     printf("\tcreate buf, width: %d, height: %d\n",bo->width, bo->height);
-    modeset_create_fb(fd, bo);
+    modesetCreatefb(fd, bo);
     drmModeSetCrtc(fd, crtc_id, bo->fb_id,
             0, 0, &conn_id, 1, &crtc->mode);
     drmModeFreeConnector(conn);
@@ -130,8 +125,8 @@ int create_fb(int fd, struct buffer_object *bo, uint32_t conn_id, uint32_t crtc_
 int main(int argc, char **argv)
 {
     int fd;
-    uint8_t count_connected_conn = 0;
-    connector_object connectors[MAX_CONN];
+    uint8_t countConnectedConn = 0;
+    connectorObject connectors[MAX_CONN];
     drmModeRes *res;
     if (argc < 2)
 	{
@@ -145,8 +140,10 @@ int main(int argc, char **argv)
 	}
 
     fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
+    //get all drm resources
     res = drmModeGetResources(fd);
     printf("\tfind %d connectors in system\n", res->count_connectors);
+    // find connected connectors from all avaliable
     for(int i = 0; i < res->count_connectors; i++)
     {
         drmModeConnectorPtr conn = drmModeGetConnector(fd, res->connectors[i]);
@@ -155,20 +152,23 @@ int main(int argc, char **argv)
         printf("\tconnector type name: %s\n", name);
         if (conn->connection==DRM_MODE_CONNECTED)
 				{
+                    // for all connected connectors
 					printf("\tconnector status: connected\n");
 					printf("\tencoder id: %d\n", conn->encoder_id);
+                    //get encoder struct to find crtc id
 					drmModeEncoderPtr enc = drmModeGetEncoder(fd, conn->encoder_id);
 					printf("\tcrtc id: %d\n", enc->crtc_id);
-                    if(count_connected_conn < MAX_CONN){
-                        connectors[count_connected_conn].conn_id = conn->connector_id;
-                        connectors[count_connected_conn].name = name;
-                        connectors[count_connected_conn].encod_id = conn->encoder_id;
-                        connectors[count_connected_conn].crtc_id = enc->crtc_id;
-                        create_fb(fd, &connectors[count_connected_conn].buf, 
-                                connectors[count_connected_conn].conn_id,
-                                connectors[count_connected_conn].crtc_id);
-                        count_connected_conn++;
-                        printf("\tsave connector object, num: %d\n", count_connected_conn);
+                    if(countConnectedConn < MAX_CONN){
+                        connectors[countConnectedConn].conn_id = conn->connector_id;
+                        connectors[countConnectedConn].name = name;
+                        connectors[countConnectedConn].encod_id = conn->encoder_id;
+                        connectors[countConnectedConn].crtc_id = enc->crtc_id;
+                        //create frame buffer and attach it to crtc
+                        createfb(fd, &connectors[countConnectedConn].buf, 
+                                connectors[countConnectedConn].conn_id,
+                                connectors[countConnectedConn].crtc_id);
+                        countConnectedConn++;
+                        printf("\tsave connector object, num: %d\n", countConnectedConn);
                     }
                     else{
                         printf("\tcouldn't create connector object, limit reached\n");
@@ -184,15 +184,15 @@ int main(int argc, char **argv)
     drmModeFreeResources(res);
     int col = 1;
     printf("\tstart load image %s to fb\n", argv[1]);
-    for (int i = 0; i < count_connected_conn; i++)
+    for (int i = 0; i < countConnectedConn; i++)
     {
         imgToFb(argv[1], &connectors[i].buf);
     }
     printf("\tEnter num to exit\n");
     scanf("%d",&col);
-    for (int i = 0; i < count_connected_conn; i++)
+    for (int i = 0; i < countConnectedConn; i++)
     {
-        modeset_destroy_fb(fd, &connectors[i].buf);
+        modesetDestroyfb(fd, &connectors[i].buf);
     }
     close(fd);
     return 0;
