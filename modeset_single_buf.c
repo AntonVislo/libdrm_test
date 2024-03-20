@@ -35,6 +35,7 @@ typedef struct connectorObject{
     uint32_t crtc_id;
     const char *name;
     struct bufferObject buf;
+    drmModeModeInfo *crtc_mode;
 }connectorObject;
 
 int imgToFb(char *img, struct bufferObject *bo)
@@ -51,10 +52,10 @@ int imgToFb(char *img, struct bufferObject *bo)
        {
 	    if(x < width && y < height)
 		{
-            		get_pixel_rgb(bmp,x , (height - y - 1), &r, &g, &b);
-    	    		*(offset + 0) = r;
-	    		*(offset + 1) = g;
-	    		*(offset + 2) = b;
+            get_pixel_rgb(bmp,x , (height - y - 1), &r, &g, &b);
+            *(offset + 0) = r;
+            *(offset + 1) = g;
+            *(offset + 2) = b;
 		}
 	    offset +=4;		
         }
@@ -106,18 +107,19 @@ static void modesetDestroyfb(int fd,struct  bufferObject *bo)
     drmIoctl(fd, DRM_IOCTL_MODE_DESTROY_DUMB, &destroy);
 }
 
-int createfb(int fd, struct bufferObject *bo, uint32_t conn_id, uint32_t crtc_id)
+int createfb(int fd, struct bufferObject *bo, uint32_t conn_id, uint32_t crtc_id, drmModeModeInfo *mod)
 {
     drmModeConnector *conn;
     drmModeCrtc *crtc;
     conn = drmModeGetConnector(fd, conn_id);
     crtc = drmModeGetCrtc(fd, crtc_id);
-    bo->width = crtc->mode.hdisplay;
-    bo->height = crtc->mode.vdisplay;
+    bo->width = mod->hdisplay;
+    bo->height = mod->vdisplay;
     printf("\tcreate buf, width: %d, height: %d\n",bo->width, bo->height);
+    printf("\tset crtc mode %s\n",mod->name);
     modesetCreatefb(fd, bo);
     drmModeSetCrtc(fd, crtc_id, bo->fb_id,
-            0, 0, &conn_id, 1, &crtc->mode);
+            0, 0, &conn_id, 1, mod);
     drmModeFreeConnector(conn);
     drmModeFreeCrtc(crtc);
     return 0;   
@@ -163,10 +165,12 @@ int main(int argc, char **argv)
                         connectors[countConnectedConn].name = name;
                         connectors[countConnectedConn].encod_id = conn->encoder_id;
                         connectors[countConnectedConn].crtc_id = enc->crtc_id;
+                        connectors[countConnectedConn].crtc_mode = &conn->modes[0];
                         //create frame buffer and attach it to crtc
                         createfb(fd, &connectors[countConnectedConn].buf, 
                                 connectors[countConnectedConn].conn_id,
-                                connectors[countConnectedConn].crtc_id);
+                                connectors[countConnectedConn].crtc_id,
+                                connectors[countConnectedConn].crtc_mode);
                         countConnectedConn++;
                         printf("\tsave connector object, num: %d\n", countConnectedConn);
                     }
