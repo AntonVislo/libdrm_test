@@ -12,12 +12,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include "cbmp.h"
-
-#define CRTC_ID_DP 68
-#define CONN_ID_DP 205
-#define CRTC_ID_HDMI 112
-#define CONN_ID_HDMI 207
-#define MAX_CONN 10
+#include <libdrm_test.h>
 
 struct bufferObject{
     uint32_t width;
@@ -124,16 +119,18 @@ int createfb(int fd, struct bufferObject *bo, uint32_t conn_id, uint32_t crtc_id
     drmModeFreeCrtc(crtc);
     return 0;   
 }
+
 int main(int argc, char **argv)
 {
     int fd;
+    int col = 1;
     uint8_t countConnectedConn = 0;
     connectorObject connectors[MAX_CONN];
     drmModeRes *res;
     if (argc < 2)
 	{
-		printf("not enough arguments");
-		return -1;
+		enum_drm();
+		return 0;
 	}
     if(access(argv[1], F_OK)!= 0)
 	{
@@ -186,7 +183,6 @@ int main(int argc, char **argv)
         drmModeFreeConnector(conn);
     }
     drmModeFreeResources(res);
-    int col = 1;
     printf("\tstart load image %s to fb\n", argv[1]);
     for (int i = 0; i < countConnectedConn; i++)
     {

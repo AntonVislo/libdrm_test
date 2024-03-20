@@ -1,9 +1,11 @@
-all: modeset_single_buf.c cbmp.c
-	gcc -o mode modeset_single_buf.c cbmp.c -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g
-all_static: modeset_single_buf.c cbmp.c
-	gcc -o mode_static modeset_single_buf.c cbmp.c -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g --static
-enum: enum_drm.c
-	gcc -o enum_drm enum_drm.c -I /usr/include/libdrm/ -ldrm -Wall -O0 -g
+SOURCES=modeset_single_buf.c cbmp.c enum_drm.c
+
+all: $(SOURCES)
+	gcc -o mode $(SOURCES) -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g
+all_static: $(SOURCES)
+	gcc -o mode_static $(SOURCES) -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g --static
 atomic: modeset_atomic_crtc.c
 	gcc -o mode_atomic modeset_atomic_crtc.c cbmp.c -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g
+cross:
+	aarch64-linux-gnu-gcc mode_arm_static $(SOURCES) -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g --static
 

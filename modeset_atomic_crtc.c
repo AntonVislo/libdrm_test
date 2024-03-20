@@ -11,11 +11,9 @@
 #include <unistd.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <libdrm_test.h>
 
-#define CRTC_ID_DP 68
-#define CONN_ID_DP 205
-#define CRTC_ID_HDMI 112
-#define CONN_ID_HDMI 207
+
 
 struct buffer_object {
     uint32_t width;

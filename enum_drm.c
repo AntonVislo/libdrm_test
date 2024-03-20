@@ -5,7 +5,8 @@
 #include <libdrm/drm.h>
 #include <xf86drmMode.h>
 #include <xf86drm.h>
-int main(int argc, char** argv)
+#include <libdrm_test.h>
+int enum_drm(void)
 {
 	char *files[] = {"/dev/dri/card0", "/dev/dri/card1"};
 	for(int cnt_files = 0; cnt_files < 2; cnt_files ++)
