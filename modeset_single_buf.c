@@ -13,25 +13,15 @@
 #include <xf86drmMode.h>
 #include "cbmp.h"
 #include <libdrm_test.h>
+#include <getopt.h>
 
-struct bufferObject{
-    uint32_t width;
-    uint32_t height;
-    uint32_t pitch;
-    uint32_t handle;
-    uint32_t size;
-    uint8_t *vaddr;
-    uint32_t fb_id;
-};
-
-typedef struct connectorObject{
-    uint32_t conn_id;
-    uint32_t encod_id;
-    uint32_t crtc_id;
-    const char *name;
-    struct bufferObject buf;
-    drmModeModeInfo *crtc_mode;
-}connectorObject;
+static struct option long_opt[] = {
+                    {"help", 0, 0, 'h'},
+                    {"enum", 0, 0, 'e'},
+                    {"auto-detect", 1, 0, 'a'},
+                    {"manual", 0, 0, 'm'},
+                    {0,0,0,0}
+                  };
 
 int imgToFb(char *img, struct bufferObject *bo)
 {
@@ -120,23 +110,12 @@ int createfb(int fd, struct bufferObject *bo, uint32_t conn_id, uint32_t crtc_id
     return 0;   
 }
 
-int main(int argc, char **argv)
+int loadImageToAll(char * imgPath)
 {
-    int fd;
-    int col = 1;
+    int fd, col = 1;
     uint8_t countConnectedConn = 0;
     connectorObject connectors[MAX_CONN];
     drmModeRes *res;
-    if (argc < 2)
-	{
-		enum_drm();
-		return 0;
-	}
-    if(access(argv[1], F_OK)!= 0)
-	{
-		printf("file %s does not exist\n", argv[1]);
-                return -1;
-	}
 
     fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);
     //get all drm resources
@@ -183,10 +162,10 @@ int main(int argc, char **argv)
         drmModeFreeConnector(conn);
     }
     drmModeFreeResources(res);
-    printf("\tstart load image %s to fb\n", argv[1]);
+    printf("\tstart load image %s to fb\n", imgPath);
     for (int i = 0; i < countConnectedConn; i++)
     {
-        imgToFb(argv[1], &connectors[i].buf);
+        imgToFb(imgPath, &connectors[i].buf);
     }
     printf("\tEnter num to exit\n");
     scanf("%d",&col);
@@ -195,6 +174,42 @@ int main(int argc, char **argv)
         modesetDestroyfb(fd, &connectors[i].buf);
     }
     close(fd);
+    return 0;
+}
+
+int manual(void)
+{
+    printf("\tmanual mode\n");
+}
+int main(int argc, char **argv)
+{
+    int optIdx;
+    int c = 1;
+    while(1)
+    {
+        if((c = getopt_long(argc, argv, "e:h", long_opt, &optIdx)) == -1)
+            break;
+        switch(c){
+            case 'h':
+                printf("\ttry  to help you\n");
+                return 0;
+            case 'e':
+                enum_drm();
+		        return 0;
+            case 'a':
+                printf("\tfile name %s\n", optarg);
+                if(access(optarg, F_OK)!= 0)
+                {
+                    printf("file %s does not exist\n", optarg);
+                            return -1;
+                }
+                loadImageToAll(optarg);
+		        return 0;
+            default:
+                printf("\tnothing to do\n");
+                return 0;
+        }
+    }
     return 0;
 }
 

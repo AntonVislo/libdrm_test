@@ -6,6 +6,5 @@ all_static: $(SOURCES)
 	gcc -o mode_static $(SOURCES) -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g --static
 atomic: modeset_atomic_crtc.c
 	gcc -o mode_atomic modeset_atomic_crtc.c cbmp.c -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g
-cross:
-	aarch64-linux-gnu-gcc mode_arm_static $(SOURCES) -I ./ -I /usr/include/libdrm/ -ldrm  -Wall -O0 -g --static
+
 
