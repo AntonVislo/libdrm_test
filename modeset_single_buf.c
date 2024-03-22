@@ -172,7 +172,8 @@ int loadImageToAll(char * imgPath)
 
 int interactiveMode(void)
 {
-     static struct option long_opt[] = {
+
+    static struct option long_opt[] = {
                     {"help", 0, 0, 'h'},
                     {"list", 1, 0, 'l'},
                     {"index", 1, 0, 'i'},
@@ -182,8 +183,12 @@ int interactiveMode(void)
     char *argvOpt[MAX_OPT];
     argvOpt[1] = data;
     argvOpt[0] = "opt";
+    drmObj *drm = malloc(sizeof(drmObj));
+    drm->drmFile = "/dev/dri/card0";
+    drm->countConnected = 0;
+    scanDrm(drm);
+
     int cnt = 0, cntOpt = 2, optIndx;
-    
     optind = 1;
     printf("print string:\n");
     do

@@ -103,3 +103,83 @@ int enum_drm(void)
 	}
 	return 0;
 }
+
+int scanDrm(drmObj *drm)
+{
+	int fd = open(drm->drmFile, O_RDWR | O_CLOEXEC);
+	if(fd < 0){
+			printf(" can`t open %s\n", drm->drmFile);
+			return -1;
+		}
+		if(drmIsKMS(fd))
+			printf("DRM support KMS\n");
+		else
+		{	
+			printf("Error, DRM not support KMS\n");
+			close(fd);
+			return 0;
+		}
+		uint64_t has_dump;
+		if(drmGetCap(fd, DRM_CAP_DUMB_BUFFER, &has_dump) < 0 || !has_dump)
+		{
+			printf("error, card 0 does not support bump buffer\n");
+			close(fd);
+			return -1;
+		}
+		drmModeResPtr res = drmModeGetResources(fd);
+		if(!res)
+		{
+			printf("error get resources\n");
+			close(fd);
+			return -1;
+		}
+
+		if(res->count_connectors>MAX_CONNECTORS)
+		{
+			printf("Warrning!!! count_connectors (%d) > MAX_CONNECTORS\n", res->count_connectors);
+			drm->cntConn = MAX_CONNECTORS;
+		}
+		else
+			drm->cntConn = res->count_connectors;
+			
+		for (int iConn = 0; iConn < drm->cntConn; iConn++)
+		{
+			drmModeConnectorPtr conn = drmModeGetConnector(fd,res->connectors[iConn]);
+			if(!conn)
+			{
+				printf("ERROR! can`t get Connector %d", res->connectors[iConn]);
+				return -1;
+			}
+			drm->connectors[iConn].connId = conn->connector_id;
+			drm->connectors[iConn].name = drmModeGetConnectorTypeName(conn->connector_type);
+			printf("teeesst name connectorr %s\n", drm->connectors[iConn].name);
+			if (conn->connection==DRM_MODE_CONNECTED)
+			{
+				drm->connectedIndex[drm->countConnected] = iConn;
+				drm->countConnected++;
+				drm->connectors[iConn].status = 1;
+				drm->connectors[iConn].modes = conn->modes;
+				drmModeEncoderPtr enc = drmModeGetEncoder(fd, conn->encoder_id);
+				if(!enc)
+				{
+					printf("ERROR! can`t get encoder %d", conn->encoder_id);
+					return -1;
+				}
+				drmModeCrtcPtr crtc = drmModeGetCrtc(fd, enc->crtc_id);
+				if(!crtc)
+				{
+					printf("ERROR! can`t get crtc %d", enc->crtc_id);
+					return -1;
+				}
+				drm->connectors[iConn].crtc.cntBufs = 0;
+				drm->connectors[iConn].crtc.mode = crtc->mode;
+				drm->connectors[iConn].crtc.fbId = crtc->buffer_id;
+			}
+			else
+			{
+				drm->connectors[iConn].status = 0;
+				continue;
+			}
+		}
+		return 0;
+}
