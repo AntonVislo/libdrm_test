@@ -14,14 +14,7 @@
 #include "cbmp.h"
 #include <libdrm_test.h>
 #include <getopt.h>
-
-static struct option long_opt[] = {
-                    {"help", 0, 0, 'h'},
-                    {"enum", 0, 0, 'e'},
-                    {"auto-detect", 1, 0, 'a'},
-                    {"manual", 0, 0, 'm'},
-                    {0,0,0,0}
-                  };
+#include <string.h>
 
 int imgToFb(char *img, struct bufferObject *bo)
 {
@@ -177,18 +170,80 @@ int loadImageToAll(char * imgPath)
     return 0;
 }
 
-int manual(void)
+int interactiveMode(void)
 {
-    printf("\tmanual mode\n");
+     static struct option long_opt[] = {
+                    {"help", 0, 0, 'h'},
+                    {"list", 1, 0, 'l'},
+                    {"index", 1, 0, 'i'},
+                    {0,0,0,0}
+                  };
+    char data[MAX_STRING_LEN], ch;
+    char *argvOpt[MAX_OPT];
+    argvOpt[1] = data;
+    argvOpt[0] = "opt";
+    int cnt = 0, cntOpt = 2, optIndx;
+    
+    optind = 1;
+    printf("print string:\n");
+    do
+    {
+         ch = getchar();
+         if(ch == ' '){
+            data[cnt] = '\0';
+            argvOpt[cntOpt] = &data[cnt + 1];
+            cntOpt++;
+         }
+         else
+            data[cnt] = ch;
+         cnt++;
+         if(cnt >= MAX_STRING_LEN){
+            printf("limit has been reached\n");
+            break;
+         }
+    } 
+    while (ch != '\n');
+    cnt--;
+    data[cnt] = '\0';
+    while(1)
+    {
+        if((ch = getopt_long(cntOpt, argvOpt, "h:l:i", long_opt, &optIndx))==-1)
+            break;
+        switch(ch)
+        {
+            case 'h':
+                printf("help\n");
+                break;                
+            case 'l':
+                printf("list of %s\n", optarg);
+                break;
+            case 'i':
+                printf("input index: %s\n", optarg);
+                break;                    
+            default:
+                break;
+        }
+    }
+    return 0;
 }
+
 int main(int argc, char **argv)
 {
+    static struct option long_opt[] = {
+                    {"help", 0, 0, 'h'},
+                    {"enum", 0, 0, 'e'},
+                    {"auto-detect", 1, 0, 'a'},
+                    {"interractive", 0, 0, 'i'},
+                    {0,0,0,0}
+                  };
     int optIdx;
     int c = 1;
     while(1)
     {
-        if((c = getopt_long(argc, argv, "e:h", long_opt, &optIdx)) == -1)
+        if((c = getopt_long(argc, argv, "e:h:a:i", long_opt, &optIdx))==-1){
             break;
+        }
+
         switch(c){
             case 'h':
                 printf("\ttry  to help you\n");
@@ -205,6 +260,10 @@ int main(int argc, char **argv)
                 }
                 loadImageToAll(optarg);
 		        return 0;
+            case 'i':
+                printf("\tenter interactive mode\n");
+                interactiveMode();
+                return 0;
             default:
                 printf("\tnothing to do\n");
                 return 0;

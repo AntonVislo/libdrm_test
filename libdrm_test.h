@@ -3,7 +3,8 @@
 #define CRTC_ID_HDMI 112
 #define CONN_ID_HDMI 207
 #define MAX_CONN 10
-
+#define MAX_STRING_LEN 100
+#define MAX_OPT 10
 struct bufferObject{
     uint32_t width;
     uint32_t height;
